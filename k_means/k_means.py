@@ -7,12 +7,12 @@ import seaborn as sns
 
 
 class KMeans:
-    
-    def __init__():
+    def __init__(self, clusters=2, iterations=10):
         # NOTE: Feel free add any hyperparameters 
         # (with defaults) as you see fit
-        pass
-        
+        self.clusters = clusters
+        self.iterations = iterations
+
     def fit(self, X):
         """
         Estimates parameters for the classifier
@@ -21,9 +21,21 @@ class KMeans:
             X (array<m,n>): a matrix of floats with
                 m rows (#samples) and n columns (#features)
         """
-        # TODO: Implement
-        raise NotImplemented()
-    
+        X = X.values
+        self.centroids = X[np.random.choice(len(X), self.clusters, replace=False)] # Randomly initialise centroids
+
+        for _ in range(self.iterations):
+            distances = cross_euclidean_distance(X, self.centroids) # Compute distances between all points and centroids
+            cluster_assignments = np.argmin(distances, axis=1) # Assign each point to the closest centroid (argmin returns the index of the minimum value=closest distance)
+
+            # Compute new centroids by taking the mean of all points in each cluster
+            new_centroids = np.array([X[cluster_assignments == cluster_index].mean(axis=0) for cluster_index in range(self.clusters)])
+
+            if np.all(new_centroids == self.centroids): # To avoid unnecessary iterations, stop if centroids don't change
+                break
+
+            self.centroids = new_centroids
+
     def predict(self, X):
         """
         Generates predictions
@@ -40,8 +52,9 @@ class KMeans:
             there are 3 clusters, then a possible assignment
             could be: array([2, 0, 0, 1, 2, 1, 1, 0, 2, 2])
         """
-        # TODO: Implement 
-        raise NotImplemented()
+        distances = cross_euclidean_distance(X.values, self.centroids) # Compute the distance between each point and each cluster center
+        cluster_assignments = np.argmin(distances, axis=1) # Find the closest centroid for each point
+        return cluster_assignments
     
     def get_centroids(self):
         """
@@ -58,8 +71,8 @@ class KMeans:
             [xm_1, xm_2, ..., xm_n]
         ])
         """
-        pass
-    
+        return self.centroids
+
     
     
     
@@ -113,7 +126,8 @@ def euclidean_distortion(X, z):
     for i, c in enumerate(clusters):
         Xc = X[z == c]
         mu = Xc.mean(axis=0)
-        distortion += ((Xc - mu) ** 2).sum(axis=1)
+        # distortion += ((Xc - mu) ** 2).sum(axis=1)
+        distortion += ((Xc - mu) ** 2).sum()  # TODO: Check why this is the only way I can get this to work
         
     return distortion
 
@@ -160,7 +174,7 @@ def euclidean_silhouette(X, z):
 if __name__ == '__main__':
     data_1 = pd.read_csv('k_means/data_1.csv')
     X = data_1[['x0', 'x1']]
-    model_1 = KMeans() # <-- Should work with default constructor  
+    model_1 = KMeans(clusters=2)
     model_1.fit(X)
 
     # Compute Silhouette Score
@@ -175,3 +189,6 @@ if __name__ == '__main__':
     sns.scatterplot(x='x0', y='x1', hue=z, hue_order=range(K), palette='tab10', data=X, ax=ax)
     sns.scatterplot(x=C[:,0], y=C[:,1], hue=range(K), palette='tab10', marker='*', s=250, edgecolor='black', ax=ax)
     ax.legend().remove()
+    plt.show(block=False)
+    plt.pause(3) # Close plot window after 3 seconds
+    plt.close()
