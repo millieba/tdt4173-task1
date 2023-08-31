@@ -7,7 +7,7 @@ import seaborn as sns
 
 
 class KMeans:
-    def __init__(self, clusters=2, iterations=10):
+    def __init__(self, clusters=2, iterations=100):
         # NOTE: Feel free add any hyperparameters 
         # (with defaults) as you see fit
         self.clusters = clusters
@@ -73,7 +73,19 @@ class KMeans:
         """
         return self.centroids
 
+def find_best_kmeans_model(X, clusters, runs):
+    best_model = None
+    best_distortion = float('inf')
+
+    for _ in range(runs):
+        model = KMeans(clusters=clusters)
+        model.fit(X)
+        distortion = euclidean_distortion(X, model.predict(X))
+        if distortion < best_distortion:
+            best_distortion = distortion
+            best_model = model
     
+    return best_model
     
     
 # --- Some utility functions 
@@ -170,19 +182,20 @@ def euclidean_silhouette(X, z):
     b = (D + inf_mask).min(axis=1)
     
     return np.mean((b - a) / np.maximum(a, b))
-  
+
+
 if __name__ == '__main__':
-    data_1 = pd.read_csv('k_means/data_1.csv')
+    data_1 = pd.read_csv('k_means/data_2.csv')
     X = data_1[['x0', 'x1']]
-    model_1 = KMeans(clusters=2)
-    model_1.fit(X)
+    X = (X - X.min()) / (X.max() - X.min()) # Normalisation improves results for data_2, but slightly worsens results for data_1
 
-    # Compute Silhouette Score
+    best_model = find_best_kmeans_model(X, clusters=8, runs=15)
+    model_1 = best_model
+    
     z = model_1.predict(X)
-    print(f'Silhouette Score: {euclidean_silhouette(X, z) :.3f}')
-    print(f'Distortion: {euclidean_distortion(X, z) :.3f}')
+    print(f'Silhouette Score: {euclidean_silhouette(X, z):.3f}')
+    print(f'Distortion: {euclidean_distortion(X, z):.3f}')
 
-    # Plot cluster assignments
     C = model_1.get_centroids()
     K = len(C)
     _, ax = plt.subplots(figsize=(5, 5), dpi=100)
@@ -190,5 +203,5 @@ if __name__ == '__main__':
     sns.scatterplot(x=C[:,0], y=C[:,1], hue=range(K), palette='tab10', marker='*', s=250, edgecolor='black', ax=ax)
     ax.legend().remove()
     plt.show(block=False)
-    plt.pause(3) # Close plot window after 3 seconds
+    plt.pause(3)
     plt.close()
