@@ -13,6 +13,37 @@ class KMeans:
         self.clusters = clusters
         self.iterations = iterations
 
+    def initialize_centroids_kmeans_plus_plus(self, X):
+        # Initialize the first centroid randomly from the dataset
+        centroids = [X[np.random.choice(X.shape[0])]]
+
+        # Repeat until we have a centroid for each cluster
+        while len(centroids) < self.clusters:
+            # Compute the squared distances of each data point to the nearest existing centroid (squaring the distances weights the points further away more heavily)
+            squared_distances = np.array([min(np.linalg.norm(x - c) ** 2 for c in centroids) for x in X])
+            
+            # Choose a new centroid from data points with a probability proportional to squared distance
+            prob_dist = squared_distances / sum(squared_distances)
+            new_centroid_index = np.random.choice(X.shape[0], p=prob_dist)
+            centroids.append(X[new_centroid_index])
+
+        return np.array(centroids)
+    
+    def initialize_centroids_maxmin(self, X):
+        # Initialize the first centroid randomly from the dataset
+        centroids = [X[np.random.choice(X.shape[0])]]
+
+        # Repeat until we have a centroid for each cluster
+        while len(centroids) < self.clusters:
+            # Compute the distances of each data point to the nearest existing centroid
+            distances = np.array([min(np.linalg.norm(x - c) for c in centroids) for x in X])
+
+            # Choose a new centroid from data points with the maximum minimum distance
+            new_centroid_index = np.argmax(distances)
+            centroids.append(X[new_centroid_index])
+
+        return np.array(centroids)
+
     def fit(self, X):
         """
         Estimates parameters for the classifier
@@ -22,7 +53,7 @@ class KMeans:
                 m rows (#samples) and n columns (#features)
         """
         X = X.values
-        self.centroids = initialise_centroids(X, self.clusters) # Initialisation inspired by K-means++
+        self.centroids = self.initialize_centroids_maxmin(X) # Initialize centroids using algorithm similar to maxmin
 
         for _ in range(self.iterations):
             distances = cross_euclidean_distance(X, self.centroids) # Compute distances between all points and centroids
@@ -75,16 +106,6 @@ class KMeans:
 
     
 # --- Some utility functions 
-def initialise_centroids(X, clusters):
-    centroids = np.zeros((clusters, X.shape[1]))
-    centroids[0] = X[np.random.choice(len(X))]  # Randomly choose first centroid
-    for i in range(1, clusters):
-        distances = cross_euclidean_distance(X, centroids[:i])
-        min_distances = distances.min(axis=1)
-        new_centroid_index = np.argmax(min_distances)  # Choose the point with maximum minimum distance
-        centroids[i] = X[new_centroid_index]
-    return centroids
-
 def euclidean_distance(x, y):
     """
     Computes euclidean distance between two sets of points 
@@ -179,11 +200,11 @@ def euclidean_silhouette(X, z):
     return np.mean((b - a) / np.maximum(a, b))
 
 
-def find_best_kmeans_model(X, clusters, runs):
+def find_best_model(X, clusters, number_of_restarts):
     best_model = None
     best_distortion = float('inf')
 
-    for _ in range(runs):
+    for _ in range(number_of_restarts):
         model = KMeans(clusters=clusters)
         model.fit(X)
         distortion = euclidean_distortion(X, model.predict(X))
@@ -193,27 +214,29 @@ def find_best_kmeans_model(X, clusters, runs):
     
     return best_model
 
-def check_performance(X, clusters, runs):
+def check_performance(X, clusters, number_of_restarts, runs=10):
     good_runs = 0
     for _ in range(runs):
-        best_model = find_best_kmeans_model(X, clusters, 3)
-        model_1 = best_model
-        # model_1 = KMeans(clusters=clusters)
-        # model_1.fit(X)
-        distortion = euclidean_distortion(X, model_1.predict(X))
-        silhouette = euclidean_silhouette(X, model_1.predict(X))
-        if distortion < 4.0 and silhouette > 0.58:
-            good_runs += 1
-    print(f'Runs with good performance: {good_runs} / {runs} ({good_runs / runs * 100:.2f}%)')
+        for _ in range(number_of_restarts):
+            best_model = find_best_model(X, clusters, number_of_restarts)
+            model_1 = best_model
+            distortion = euclidean_distortion(X, model_1.predict(X))
+            silhouette = euclidean_silhouette(X, model_1.predict(X))
+            if distortion < 4.0 and silhouette > 0.58: # Note: These values are specific to data_2
+                good_runs += 1
+                break
+    print(f'Runs with good performance: {good_runs} / {runs} ({good_runs / (runs) * 100:.2f}%)')
 
     
 if __name__ == '__main__':
     data_1 = pd.read_csv('k_means/data_2.csv')
     X = data_1[['x0', 'x1']]
     X = (X - X.min()) / (X.max() - X.min()) # Normalisation improves results for data_2, but slightly worsens results for data_1
+    clusters = 8
+    number_of_restarts = 3
 
-    check_performance(X, clusters=8, runs=10)
-    best_model = find_best_kmeans_model(X, clusters=8, runs=3)
+    check_performance(X, clusters=clusters, number_of_restarts=number_of_restarts)
+    best_model = find_best_model(X, clusters=clusters, number_of_restarts=number_of_restarts)
     model_1 = best_model
     
     z = model_1.predict(X)
