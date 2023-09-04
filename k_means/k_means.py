@@ -7,9 +7,7 @@ import seaborn as sns
 
 
 class KMeans:
-    def __init__(self, clusters=2, iterations=100):
-        # NOTE: Feel free add any hyperparameters 
-        # (with defaults) as you see fit
+    def __init__(self, clusters=2, iterations=10):
         self.clusters = clusters
         self.iterations = iterations
 
@@ -200,7 +198,7 @@ def euclidean_silhouette(X, z):
     return np.mean((b - a) / np.maximum(a, b))
 
 
-def find_best_model(X, clusters, number_of_restarts):
+def find_best_model(X, clusters, number_of_restarts): # Function for doing restart runs so we can continue with the best model
     best_model = None
     best_distortion = float('inf')
 
@@ -214,7 +212,7 @@ def find_best_model(X, clusters, number_of_restarts):
     
     return best_model
 
-def check_performance(X, clusters, number_of_restarts, runs=10):
+def check_performance(X, clusters, number_of_restarts, runs=10): # Function for running the algorithm multiple times and checking its performance
     good_runs = 0
     for _ in range(runs):
         for _ in range(number_of_restarts):
@@ -229,21 +227,21 @@ def check_performance(X, clusters, number_of_restarts, runs=10):
 
     
 if __name__ == '__main__':
-    data_1 = pd.read_csv('k_means/data_2.csv')
-    X = data_1[['x0', 'x1']]
+    data_2 = pd.read_csv('k_means/data_2.csv')
+    X = data_2[['x0', 'x1']]
     X = (X - X.min()) / (X.max() - X.min()) # Normalisation improves results for data_2, but slightly worsens results for data_1
     clusters = 8
     number_of_restarts = 3
 
     check_performance(X, clusters=clusters, number_of_restarts=number_of_restarts)
     best_model = find_best_model(X, clusters=clusters, number_of_restarts=number_of_restarts)
-    model_1 = best_model
+    model_2 = best_model
     
-    z = model_1.predict(X)
+    z = model_2.predict(X)
     print(f'Silhouette Score: {euclidean_silhouette(X, z):.3f}')
     print(f'Distortion: {euclidean_distortion(X, z):.3f}')
 
-    C = model_1.get_centroids()
+    C = model_2.get_centroids()
     K = len(C)
     _, ax = plt.subplots(figsize=(5, 5), dpi=100)
     sns.scatterplot(x='x0', y='x1', hue=z, hue_order=range(K), palette='tab10', data=X, ax=ax)
