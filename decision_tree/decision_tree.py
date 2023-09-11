@@ -6,10 +6,10 @@ import pandas as pd
 
 class DecisionTree:
     
-    def __init__():
+    def __init__(self):
         # NOTE: Feel free add any hyperparameters 
         # (with defaults) as you see fit
-        pass
+        self.tree = None
     
     def fit(self, X, y):
         """
@@ -20,10 +20,31 @@ class DecisionTree:
                 each row is a sample and the columns correspond
                 to the features.
             y (pd.Series): a vector of discrete ground-truth labels
+
+        Returns:
+            A decision tree, represented as a nested dictionary.
         """
-        # TODO: Implement 
-        raise NotImplementedError()
-    
+         
+        if len(np.unique(y)) == 1:  # If all labels are the same, return a leaf node
+            # print("All labels are the same, returning a leaf node ", y.iloc[0])
+            return y.iloc[0] # Return the first label in y (they're all the same)
+        if len(X.columns) == 0:  # If no more features, return majority label
+            # print("No more features, returning majority label ", y.mode().iloc[0])
+            return y.mode().iloc[0] # Return the most common label found in y
+
+        best_feature, best_split = self.select_best_split(X, y)
+        if best_feature is None: # If no best feature was found, return majority label
+            return y.mode().iloc[0]
+
+        tree = {best_feature: {}} # Create a new tree node (dictionary) with the best feature as the key
+        for value in best_split: # For each unique value of the best feature (i.e. 'Weak', 'Strong' for 'Wind')
+            subset_X = X[X[best_feature] == value] # Find the elements of X that correspond to the current feature value (e.g. 'Weak')
+            subset_y = y[X[best_feature] == value] # Find the elements of y that correspond to the current feature value (e.g. 'Weak')
+            # Recursively call this function, passing in the current subset of X and y, and add the resulting subtree to the current tree:
+            tree[best_feature][value] = self.fit(subset_X.drop(columns=[best_feature]), subset_y) 
+
+        return tree
+
     def predict(self, X):
         """
         Generates predictions
@@ -38,9 +59,75 @@ class DecisionTree:
         Returns:
             A length m vector with predictions
         """
-        # TODO: Implement 
-        raise NotImplementedError()
+        predictions = []
+        
+        for index, row in X.iterrows(): # Iterate over rows in the input DataFrame
+            current_node = self.tree 
+            
+            while isinstance(current_node, dict): # While the current node is not a leaf node (because it is a dictionary, not a string)
+                feature = list(current_node.keys())[0] # Get the feature to split on (the first key in the dictionary)
+                
+                if row[feature] in current_node[feature]: # If the feature value matches a branch
+                    current_node = current_node[feature][row[feature]] # Move to the next node
+                else:
+                    break # If there's no matching branch, exit the loop
+            
+            predictions.append(current_node)
+            
+        return predictions
     
+
+    def select_best_split(self, X, y):
+        '''
+        Selects the best feature to split on based on information gain (ID3 algorithm)
+
+        Args:
+            X (pd.DataFrame): the input data
+            y (pd.Series): a vector of discrete ground-truth labels (i.e. 'Yes' or 'No')
+
+        Returns:
+            best_feature (str): the feature to split on in order to maximize information gain
+            best_split (list): the unique values of the best feature (i.e. 'Weak', 'Strong' for 'Wind')
+        '''
+        best_feature = None
+        best_info_gain = -1
+
+        for feature in X.columns: # For each feature in the input X DataFrame
+            info_gain = self.get_information_gain(X, y, feature) # Calculate the information gain of the feature
+            if info_gain > best_info_gain: # If the information gain is greater than the current best information gain
+                best_info_gain = info_gain # Update the best information gain
+                best_feature = feature # Update the best feature to split on
+
+        if best_feature is not None: # If a best feature was found
+            best_split = np.unique(X[best_feature]) # Get the unique values of the best feature (i.e. 'Weak', 'Strong' for 'Wind')
+        else:
+            best_split = [] # If no best feature was found, return an empty list
+
+        return best_feature, best_split
+
+    def get_information_gain(self, X, y, feature):
+        '''
+        Calculates the information gain of a feature by comparing the entropy of the parent node to the entropy of the children nodes
+
+        Args:
+            X (pd.DataFrame): the input data
+            y (pd.Series): a vector of discrete ground-truth labels (i.e. 'Yes' or 'No')
+            feature (str): the feature to split on (i.e. could be 'Outlook', 'Humidity', 'Wind', or 'Temperature' in the first dataset)
+
+        Returns:
+            information_gain (float): the information gain of the feature (i.e. how much the entropy decreases by splitting on the feature)
+        '''
+        counts = y.value_counts() # Get the counts of each label in the parent node (i.e. how many occurrences of 'Yes' and 'No')
+        entropy_parent = entropy(counts) # Calculate the entropy of the parent node
+        entropy_children = 0 
+
+        for value in np.unique(X[feature]): # For each unique value of the feature (i.e. 'Weak', 'Strong' for 'Wind')
+            subset_y = y[X[feature] == value] # Find the elements of y that correspond to the current feature value (e.g. 'Weak')
+            counts_child = subset_y.value_counts() # Get the counts of each label in the child node (i.e. how many occurrences of 'Yes' and 'No')
+            entropy_children += (len(subset_y) / len(y)) * entropy(counts_child) # Calculate the entropy of the chosen feature to split on
+
+        return entropy_parent - entropy_children 
+
     def get_rules(self):
         """
         Returns the decision tree as a list of rules
@@ -59,10 +146,22 @@ class DecisionTree:
             ...
         ]
         """
-        # TODO: Implement
-        raise NotImplementedError()
+        # Because self.tree is a nested dictionary, we use a recursive function to extract the rules so it matches the expected output format
+        def extract_rules(tree, rule=None):
+            if rule is None: # If no rule is passed in, initialize an empty list
+                rule = []
+            if isinstance(tree, dict): # Check if the current node is a dictionary (i.e. not a leaf node, meaning there are more tree levels to traverse)
+                feature = list(tree.keys())[0] # Start with the first feature in the dictionary
 
+                for value, sub_tree in tree[feature].items(): # For each "level" under the current feature
+                    new_rule = rule + [(feature, value)] # Making sure that we add to the existing rule, to avoid splitting the same rule into multiple rules
+                    yield from extract_rules(sub_tree, new_rule) # Recursively call this function, passing in the current subtree and the new rule
+            else:
+                # print("Encountered a leaf node given rule: ", rule)
+                yield (rule, tree) # Return the rule and the tree as it was passed in (happens when the current node is a leaf node)
 
+        return list(extract_rules(self.tree)) # Return the list of rules
+    
 # --- Some utility functions 
     
 def accuracy(y_true, y_pred):
@@ -76,6 +175,9 @@ def accuracy(y_true, y_pred):
     Returns:
         The average number of correct predictions
     """
+    # Convert to pandas vector (expected argument type)
+    y_true = pd.Series(y_true)
+    y_pred = pd.Series(y_pred)
     assert y_true.shape == y_pred.shape
     return (y_true == y_pred).mean()
 
@@ -103,4 +205,17 @@ def entropy(counts):
     return - np.sum(probs * np.log2(probs))
 
 
+if __name__ == "__main__":
+    data_1 = pd.read_csv('decision_tree/data_1.csv')
+    X = data_1.drop(columns=['Play Tennis'])
+    y = data_1['Play Tennis']
 
+    model_1 = DecisionTree()
+    model_1.tree = model_1.fit(X, y)
+
+    y_pred = model_1.predict(X)
+    print(f'Accuracy: {accuracy(y, y_pred) * 100:.1f}%')
+
+    for rules, label in model_1.get_rules():
+        conjunction = ' ∩ '.join(f'{attr}={value}' for attr, value in rules)
+        print(f'{"✅" if label == "Yes" else "❌"} {conjunction} => {label}')
