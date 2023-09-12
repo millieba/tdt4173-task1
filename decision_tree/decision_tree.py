@@ -206,6 +206,9 @@ def entropy(counts):
 
 
 if __name__ == "__main__":
+    # Notebook code for dataset 1
+    print("\n##################### DATASET 1 #####################")
+
     data_1 = pd.read_csv('decision_tree/data_1.csv')
     X = data_1.drop(columns=['Play Tennis'])
     y = data_1['Play Tennis']
@@ -219,3 +222,24 @@ if __name__ == "__main__":
     for rules, label in model_1.get_rules():
         conjunction = ' ∩ '.join(f'{attr}={value}' for attr, value in rules)
         print(f'{"✅" if label == "Yes" else "❌"} {conjunction} => {label}')
+
+    # Notebook code for dataset 2
+    print("\n##################### DATASET 2 #####################")
+    data_2 = pd.read_csv('decision_tree/data_2.csv')
+
+    data_2_train = data_2.query('Split == "train"')
+    data_2_valid = data_2.query('Split == "valid"')
+    data_2_test = data_2.query('Split == "test"')
+    X_train, y_train = data_2_train.drop(columns=['Outcome', 'Split']), data_2_train.Outcome
+    X_valid, y_valid = data_2_valid.drop(columns=['Outcome', 'Split']), data_2_valid.Outcome
+    X_test, y_test = data_2_test.drop(columns=['Outcome', 'Split']), data_2_test.Outcome
+    data_2.Split.value_counts()
+
+    # Fit model (TO TRAIN SET ONLY)
+    model_2 = DecisionTree()  # <-- Feel free to add hyperparameters 
+    model_2.fit(X_train, y_train)
+
+    print(f'Train: {accuracy(y_train, model_2.predict(X_train)) * 100 :.1f}%')
+    print(f'Valid: {accuracy(y_valid, model_2.predict(X_valid)) * 100 :.1f}%')
+
+    
