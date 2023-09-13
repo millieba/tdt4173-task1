@@ -28,14 +28,8 @@ class DecisionTree:
         if len(np.unique(y)) == 1:  # If all labels are the same, return a leaf node
             # print("All labels are the same, returning a leaf node ", y.iloc[0])
             return y.iloc[0] # Return the first label in y (they're all the same)
-        if len(X.columns) == 0:  # If no more features, return majority label
-            # print("No more features, returning majority label ", y.mode().iloc[0])
-            return y.mode().iloc[0] # Return the most common label found in y
 
         best_feature, best_split = self.select_best_split(X, y)
-        if best_feature is None: # If no best feature was found, return majority label
-            return y.mode().iloc[0]
-
         tree = {best_feature: {}} # Create a new tree node (dictionary) with the best feature as the key
         for value in best_split: # For each unique value of the best feature (i.e. 'Weak', 'Strong' for 'Wind')
             subset_X = X[X[best_feature] == value] # Find the elements of X that correspond to the current feature value (e.g. 'Weak')
@@ -61,7 +55,7 @@ class DecisionTree:
         """
         predictions = []
         
-        for index, row in X.iterrows(): # Iterate over rows in the input DataFrame
+        for _, row in X.iterrows(): # Iterate over rows in the input DataFrame
             current_node = self.tree 
             
             while isinstance(current_node, dict): # While the current node is not a leaf node (because it is a dictionary, not a string)
@@ -176,8 +170,8 @@ def accuracy(y_true, y_pred):
         The average number of correct predictions
     """
     # Convert to pandas vector (expected argument type)
-    y_true = pd.Series(y_true)
-    y_pred = pd.Series(y_pred)
+    y_true = pd.Series(y_true).reset_index(drop=True)  # Reset the indices to match (comparison failed for dataset 2 without this)
+    y_pred = pd.Series(y_pred).reset_index(drop=True)  
     assert y_true.shape == y_pred.shape
     return (y_true == y_pred).mean()
 
@@ -237,7 +231,14 @@ if __name__ == "__main__":
 
     # Fit model (TO TRAIN SET ONLY)
     model_2 = DecisionTree()  # <-- Feel free to add hyperparameters 
-    model_2.fit(X_train, y_train)
+    # model_2 = model_2.fit(X_train, y_train)
+    
+    # NB
+    model_2.tree = model_2.fit(X_train, y_train) 
+    #print(y_valid)
+    #print("\n", model_2.predict(X_valid), "\n")
+    #print("Length of y_valid: ", len(y_valid), ", Length of predictions: ", len(model_2.predict(X_valid)))
+    # NB
 
     print(f'Train: {accuracy(y_train, model_2.predict(X_train)) * 100 :.1f}%')
     print(f'Valid: {accuracy(y_valid, model_2.predict(X_valid)) * 100 :.1f}%')
