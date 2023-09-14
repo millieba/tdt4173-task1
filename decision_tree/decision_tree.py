@@ -26,8 +26,13 @@ class DecisionTree:
         """
          
         if len(np.unique(y)) == 1:  # If all labels are the same, return a leaf node
-            # print("All labels are the same, returning a leaf node ", y.iloc[0])
             return y.iloc[0] # Return the first label in y (they're all the same)
+        
+        if len(X.columns) == 0:  # If no more features, return majority label
+            # print("No more features, returning majority label ", y.mode().iloc[0])
+            return y.mode().iloc[0] # Return the most common label found in y
+
+        best_feature, best_split = self.select_best_split(X, y)
 
         best_feature, best_split = self.select_best_split(X, y)
         tree = {best_feature: {}} # Create a new tree node (dictionary) with the best feature as the key
@@ -64,7 +69,8 @@ class DecisionTree:
                 if row[feature] in current_node[feature]: # If the feature value matches a branch
                     current_node = current_node[feature][row[feature]] # Move to the next node
                 else:
-                    break # If there's no matching branch, exit the loop
+                    current_node = current_node[feature][list(current_node[feature].keys())[0]] # No matching branch, so move on by selecting the first branch available for the current feature
+                    # This could cause problems if there is no branch under current_node[feature], but seems to work for the given datasets
             
             predictions.append(current_node)
             
@@ -224,10 +230,10 @@ if __name__ == "__main__":
     data_2_train = data_2.query('Split == "train"')
     data_2_valid = data_2.query('Split == "valid"')
     data_2_test = data_2.query('Split == "test"')
-    X_train, y_train = data_2_train.drop(columns=['Outcome', 'Split']), data_2_train.Outcome
-    X_valid, y_valid = data_2_valid.drop(columns=['Outcome', 'Split']), data_2_valid.Outcome
-    X_test, y_test = data_2_test.drop(columns=['Outcome', 'Split']), data_2_test.Outcome
-    data_2.Split.value_counts()
+    X_train, y_train = data_2_train.drop(columns=['Outcome', 'Split', 'Birth Month']), data_2_train.Outcome
+    X_valid, y_valid = data_2_valid.drop(columns=['Outcome', 'Split', 'Birth Month']), data_2_valid.Outcome
+    X_test, y_test = data_2_test.drop(columns=['Outcome', 'Split', 'Birth Month']), data_2_test.Outcome
+    data_2.Split.value_counts()    
 
     # Fit model (TO TRAIN SET ONLY)
     model_2 = DecisionTree()  # <-- Feel free to add hyperparameters 
@@ -235,12 +241,10 @@ if __name__ == "__main__":
     
     # NB
     model_2.tree = model_2.fit(X_train, y_train) 
-    #print(y_valid)
-    #print("\n", model_2.predict(X_valid), "\n")
-    #print("Length of y_valid: ", len(y_valid), ", Length of predictions: ", len(model_2.predict(X_valid)))
     # NB
 
     print(f'Train: {accuracy(y_train, model_2.predict(X_train)) * 100 :.1f}%')
     print(f'Valid: {accuracy(y_valid, model_2.predict(X_valid)) * 100 :.1f}%')
+    print(f'Test: {accuracy(y_test, model_2.predict(X_test)) * 100 :.1f}%')
 
     
