@@ -11,7 +11,7 @@ class KMeans:
         self.clusters = clusters
         self.iterations = iterations
 
-    def initialize_centroids_kmeans_plus_plus(self, X):
+    def initialize_centroids_kmeans_plus_plus(self, X): # This did not work very well
         # Initialize the first centroid randomly from the dataset
         centroids = [X[np.random.choice(X.shape[0])]]
 

@@ -24,12 +24,10 @@ class DecisionTree:
         Returns:
             A decision tree, represented as a nested dictionary.
         """
-         
         if len(np.unique(y)) == 1:  # If all labels are the same, return a leaf node
             return y.iloc[0] # Return the first label in y (they're all the same)
         
         if len(X.columns) == 0:  # If no more features, return majority label
-            # print("No more features, returning majority label ", y.mode().iloc[0])
             return y.mode().iloc[0] # Return the most common label found in y
 
         best_feature, best_split = self.select_best_split(X, y)
@@ -42,6 +40,7 @@ class DecisionTree:
             # Recursively call this function, passing in the current subset of X and y, and add the resulting subtree to the current tree:
             tree[best_feature][value] = self.fit(subset_X.drop(columns=[best_feature]), subset_y) 
 
+        self.tree = tree
         return tree
 
     def predict(self, X):
@@ -112,7 +111,7 @@ class DecisionTree:
         Args:
             X (pd.DataFrame): the input data
             y (pd.Series): a vector of discrete ground-truth labels (i.e. 'Yes' or 'No')
-            feature (str): the feature to split on (i.e. could be 'Outlook', 'Humidity', 'Wind', or 'Temperature' in the first dataset)
+            feature (str): the feature to split on (e.g., 'Outlook', 'Humidity', 'Wind', or 'Temperature' in the first dataset)
 
         Returns:
             information_gain (float): the information gain of the feature (i.e. how much the entropy decreases by splitting on the feature)
@@ -208,16 +207,17 @@ def entropy(counts):
 if __name__ == "__main__":
     # Notebook code for dataset 1
     print("\n##################### DATASET 1 #####################")
-
     data_1 = pd.read_csv('decision_tree/data_1.csv')
+    # Separate independent (X) and dependent (y) variables
     X = data_1.drop(columns=['Play Tennis'])
     y = data_1['Play Tennis']
 
-    model_1 = DecisionTree()
-    model_1.tree = model_1.fit(X, y)
+    # Create and fit a Decrision Tree classifier
+    model_1 = DecisionTree()  # <-- Should work with default constructor
+    model_1.fit(X, y)
 
-    y_pred = model_1.predict(X)
-    print(f'Accuracy: {accuracy(y, y_pred) * 100:.1f}%')
+    # Verify that it perfectly fits the training set
+    print(f'Accuracy: {accuracy(y_true=y, y_pred=model_1.predict(X)) * 100 :.1f}%')
 
     for rules, label in model_1.get_rules():
         conjunction = ' ∩ '.join(f'{attr}={value}' for attr, value in rules)
@@ -237,11 +237,7 @@ if __name__ == "__main__":
 
     # Fit model (TO TRAIN SET ONLY)
     model_2 = DecisionTree()  # <-- Feel free to add hyperparameters 
-    # model_2 = model_2.fit(X_train, y_train)
-    
-    # NB
-    model_2.tree = model_2.fit(X_train, y_train) 
-    # NB
+    model_2.fit(X_train, y_train)
 
     print(f'Train: {accuracy(y_train, model_2.predict(X_train)) * 100 :.1f}%')
     print(f'Valid: {accuracy(y_valid, model_2.predict(X_valid)) * 100 :.1f}%')
